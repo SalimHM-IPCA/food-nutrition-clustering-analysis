@@ -1,6 +1,13 @@
 name: Run clustering notebook
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,21 +17,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install jupyter nbconvert
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install jupyter nbconvert ipykernel
+          python -m ipykernel install --user --name python3 --display-name "Python 3"
 
-    - name: Show my files
-      run: ls -R
+      - name: Show available Jupyter kernels
+        run: jupyter kernelspec list
 
-    - name: Execute my notebook
-      run: jupyter nbconvert --to notebook --execute food_nutrition_analysis.ipynb
+      - name: Execute notebook
+        run: |
+          jupyter nbconvert \
+            --to notebook \
+            --execute food_nutrition_analysis.ipynb \
+            --ExecutePreprocessor.kernel_name=python3 \
+            --ExecutePreprocessor.timeout=600 \
+            --output food_nutrition_analysis_executed.ipynb
+
+      - name: Upload executed notebook
+        uses: actions/upload-artifact@v4
+        with:
+          name: executed-food-nutrition-notebook
+          path: food_nutrition_analysis_executed.ipynb
+          if-no-files-found: error
